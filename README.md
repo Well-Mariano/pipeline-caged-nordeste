@@ -79,7 +79,7 @@ Este script deve ser executado **apenas na primeira carga do projeto**.
 
 ### Script 2 — ATUALIZAÇÃO MENSAL (`CAGED_02.py`)
 
-Responsável por **atualizar automaticamente** a base com novas competências mensais, lidando com três tipos de arquivos do CAGED (CAGEDMOV, CAGEDFOR e CAGEDEXC.
+Responsável por **atualizar automaticamente** a base com novas competências mensais, lidando com três tipos de arquivos do CAGED (CAGEDMOV, CAGEDFOR e CAGEDEXC).
 
 **Etapas:**
 
