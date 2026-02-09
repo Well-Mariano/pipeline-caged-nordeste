@@ -176,7 +176,7 @@ caged-nordeste-analytics/
 git clone https://github.com/seu-usuario/caged-nordeste-analytics.git
 ```
 
-### 2️⃣ Instalar dependências
+### Instalar dependências
 
 ```bash
 pip install -r requirements.txt
