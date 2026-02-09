@@ -1,4 +1,4 @@
-# 📊 Análise do Mercado de Trabalho no Nordeste — Novo CAGED
+# Análise do Mercado de Trabalho no Nordeste — Novo CAGED
 
 Este projeto tem como objetivo analisar a dinâmica do mercado de trabalho formal na região Nordeste do Brasil, utilizando os microdados oficiais do **Novo CAGED**, por meio de um pipeline completo de dados (ETL) e visualização analítica em **Power BI**.
 
@@ -6,7 +6,7 @@ O projeto percorre todas as etapas de um fluxo profissional de dados: **extraç�
 
 ---
 
-## 🎯 Objetivo
+## Objetivo
 
 Construir uma solução analítica que permita:
 
@@ -18,7 +18,7 @@ Construir uma solução analítica que permita:
 
 ---
 
-## 🏗️ Arquitetura da Solução
+## Arquitetura da Solução
 
 O pipeline de dados foi estruturado em três principais camadas:
 
@@ -36,7 +36,7 @@ FTP (MTE) → Python (ETL) → PostgreSQL → Power BI
 
 ---
 
-## 🧰 Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 * **Python** — Extração, tratamento e automação do pipeline (ETL)
 * **Pandas & NumPy** — Manipulação e transformação de dados
@@ -45,7 +45,7 @@ FTP (MTE) → Python (ETL) → PostgreSQL → Power BI
 
 ---
 
-## ⚙️ Estrutura do Pipeline ETL
+## Estrutura do Pipeline ETL
 
 O pipeline em Python foi dividido em **dois scripts principais**, garantindo escalabilidade e facilidade de atualização.
 
@@ -103,7 +103,7 @@ Este script pode ser executado **sempre que houver nova competência disponível
 
 ---
 
-## 🗄️ Banco de Dados — PostgreSQL
+## Banco de Dados — PostgreSQL
 
 O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
 
@@ -118,7 +118,7 @@ O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
 
 ---
 
-## 📊 Dashboard — Power BI
+## Dashboard — Power BI
 
 O dashboard foi desenvolvido para transformar os dados tratados em **insights estratégicos**, permitindo uma análise clara, dinâmica e interativa do mercado de trabalho formal no Nordeste.
 
@@ -144,7 +144,7 @@ O dashboard foi desenvolvido para transformar os dados tratados em **insights es
 
 ---
 
-## 📁 Estrutura do Repositório
+## Estrutura do Repositório
 
 ```
 caged-nordeste-analytics/
@@ -168,9 +168,9 @@ caged-nordeste-analytics/
 
 ---
 
-## 🚀 Como Executar o Projeto
+##  Como Executar o Projeto
 
-### 1️⃣ Clonar o repositório
+### Clonar o repositório
 
 ```bash
 git clone https://github.com/seu-usuario/caged-nordeste-analytics.git
@@ -182,13 +182,13 @@ git clone https://github.com/seu-usuario/caged-nordeste-analytics.git
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Executar carga inicial
+### Executar carga inicial
 
 ```bash
 python etl/CAGED_01.py
 ```
 
-### 4️⃣ Atualizações mensais
+### Atualizações mensais
 
 ```bash
 python etl/CAGED_02.py
@@ -196,7 +196,7 @@ python etl/CAGED_02.py
 
 ---
 
-## 📌 Observações
+## Observações
 
 * Os dados são provenientes de fonte pública oficial (Novo CAGED).
 * O projeto foi desenvolvido para fins educacionais, portfólio e aprimoramento técnico.
@@ -204,7 +204,7 @@ python etl/CAGED_02.py
 
 ---
 
-## 👨‍💻 Autor
+## Autor
 
 **Wellington Mariano Pedro**
 Estudante de Ciências Econômicas — UFPE
@@ -212,7 +212,7 @@ Foco em Data Analytics, Business Intelligence e Engenharia de Dados
 
 ---
 
-## ⭐ Considerações Finais
+## Considerações Finais
 
 Este projeto demonstra a construção de uma solução analítica completa, indo desde a ingestão automatizada dos dados até a geração de insights estratégicos por meio de dashboards interativos.
 
