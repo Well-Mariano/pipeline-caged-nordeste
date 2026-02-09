@@ -49,7 +49,7 @@ FTP (MTE) → Python (ETL) → PostgreSQL → Power BI
 
 O pipeline em Python foi dividido em **dois scripts principais**, garantindo escalabilidade e facilidade de atualização.
 
-### 🔹 Script 1 — CARGA INICIAL (`CAGED_01.py`)
+### Script 1 — CARGA INICIAL (`CAGED_01.py`)
 
 Responsável por realizar a **primeira carga** da base de dados.
 
@@ -77,9 +77,9 @@ Este script deve ser executado **apenas na primeira carga do projeto**.
 
 ---
 
-### 🔹 Script 2 — ATUALIZAÇÃO MENSAL (`CAGED_02.py`)
+### Script 2 — ATUALIZAÇÃO MENSAL (`CAGED_02.py`)
 
-Responsável por **atualizar automaticamente** a base com novas competências mensais.
+Responsável por **atualizar automaticamente** a base com novas competências mensais, lidando com três tipos de arquivos do CAGED (CAGEDMOV, CAGEDFOR e CAGEDEXC.
 
 **Etapas:**
 
@@ -89,7 +89,7 @@ Responsável por **atualizar automaticamente** a base com novas competências me
   * CAGEDFOR (fora do prazo)
   * CAGEDEXC (exclusões)
 * Tratamento e padronização dos dados;
-* Identificação e remoção de registros duplicados;
+* Identificação e remoção de registros duplicados (código SQL);
 * Atualização incremental da base PostgreSQL;
 * Garantia de integridade dos dados.
 
@@ -115,6 +115,13 @@ O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
 **Tabela principal:**
 
 * `caged_movimentacao`
+
+---
+
+## Exclusão das informações (CAGEDEXC)
+
+Um dos principais desafios do Novo CAGED é processar o arquivo de "Desconsiderados" sem possuir idetificadores únicos, como o CPF, na base pública.
+Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo CAGEDEXC para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos.
 
 ---
 
