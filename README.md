@@ -23,7 +23,7 @@ Construir uma solução analítica que permita:
 O pipeline de dados foi estruturado em três principais camadas:
 
 ```
-FTP (MTE) → Python (ETL) → PostgreSQL → Power BI
+Python (ETL) → PostgreSQL (Armazenamento) → Power BI (Visualiação)
 ```
 
 ### Fluxo Geral:
@@ -38,7 +38,7 @@ FTP (MTE) → Python (ETL) → PostgreSQL → Power BI
 
 ## Tecnologias Utilizadas
 
-* **Python** — Extração, tratamento e automação do pipeline (ETL)
+* **Python** — Extração (Via FTP), tratamento e automação do pipeline (ETL)
 * **Pandas & NumPy** — Manipulação e transformação de dados
 * **SQL & PostgreSQL** — Armazenamento e organização da base
 * **Power BI** — Modelagem analítica, visualização e dashboard interativo
@@ -86,8 +86,8 @@ Responsável por **atualizar automaticamente** a base com novas competências me
 * Download dos arquivos:
 
   * CAGEDMOV (movimentações)
-  * CAGEDFOR (fora do prazo)
-  * CAGEDEXC (exclusões)
+  * CAGEDFOR (movimentações fora do prazo)
+  * CAGEDEXC (exclusão das movimentações)
 * Tratamento e padronização dos dados;
 * Identificação e remoção de registros duplicados (código SQL);
 * Atualização incremental da base PostgreSQL;
@@ -99,7 +99,7 @@ Responsável por **atualizar automaticamente** a base com novas competências me
 python CAGED_02.py
 ```
 
-Este script pode ser executado **sempre que houver nova competência disponível**.
+Este script deve ser executado **sempre que houver nova competência disponível** para garantir integridade das informações e êxito na atualização da base de dados.
 
 ---
 
@@ -116,12 +116,10 @@ O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
 
 * `caged_movimentacao`
 
----
-
 ## Exclusão das informações (CAGEDEXC)
 
 Um dos principais desafios do Novo CAGED é processar o arquivo de "Desconsiderados" sem possuir idetificadores únicos, como o CPF, na base pública.
-Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo CAGEDEXC para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos.
+Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo **CAGEDEXC** para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos.
 
 ---
 
@@ -141,7 +139,7 @@ O dashboard foi desenvolvido para transformar os dados tratados em **insights es
 
 ### Funcionalidades Analíticas:
 
-* Filtros dinâmicos por período e estado
+* Filtros dinâmicos por período, estado e CBO
 * Drill-down setorial (setor → subsetor)
 * Análise temporal
 * Segmentações demográficas
@@ -188,6 +186,11 @@ git clone https://github.com/seu-usuario/caged-nordeste-analytics.git
 ```bash
 pip install -r requirements.txt
 ```
+### Criação do Banco de dados
+
+```bash
+sql CREATE DATABASE projeto_caged;
+```
 
 ### Executar carga inicial
 
@@ -208,6 +211,9 @@ python etl/CAGED_02.py
 * Os dados são provenientes de fonte pública oficial (Novo CAGED).
 * O projeto foi desenvolvido para fins educacionais, portfólio e aprimoramento técnico.
 * O pipeline foi estruturado com foco em boas práticas análise de dados.
+* Os comandos referente ao SQL foram implementados no `CAGED_02.py` utilizando-se da função `text`.
+* O caminho da FTP sempre deve ser alterado para a comptência que deseja realizar o download.
+
 
 ---
 
@@ -215,7 +221,8 @@ python etl/CAGED_02.py
 
 **Wellington Mariano Pedro**
 Estudante de Ciências Econômicas — UFPE
-Foco em Data Analytics, Business Intelligence e Engenharia de Dados
+[Linkedin](https://www.linkedin.com/in/wellington-mariano-985a39231/)
+Foco em Data Analytics e Business Intelligence.
 
 ---
 
