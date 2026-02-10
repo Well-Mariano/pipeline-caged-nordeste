@@ -49,7 +49,7 @@ Python (ETL) → PostgreSQL (Armazenamento) → Power BI (Visualiação)
 
 O pipeline em Python foi dividido em **dois scripts principais**, garantindo escalabilidade e facilidade de atualização.
 
-### Script 1 — CARGA INICIAL (`CAGED_01.py`)
+### Script 1 — CARGA INICIAL (`etl_carga_inicial.py`)
 
 Responsável por realizar a **primeira carga** da base de dados.
 
@@ -70,14 +70,14 @@ Responsável por realizar a **primeira carga** da base de dados.
 **Uso:**
 
 ```bash
-python CAGED_01.py
+python etl_carga_inicial.py
 ```
 
 Este script deve ser executado **apenas na primeira carga do projeto**.
 
 ---
 
-### Script 2 — ATUALIZAÇÃO MENSAL (`CAGED_02.py`)
+### Script 2 — ATUALIZAÇÃO MENSAL (`etl_atualizações.py`)
 
 Responsável por **atualizar automaticamente** a base com novas competências mensais, lidando com três tipos de arquivos do CAGED (CAGEDMOV, CAGEDFOR e CAGEDEXC).
 
@@ -96,7 +96,7 @@ Responsável por **atualizar automaticamente** a base com novas competências me
 **Uso:**
 
 ```bash
-python CAGED_02.py
+python etl_atualizações.py
 ```
 
 Este script deve ser executado **sempre que houver nova competência disponível** para garantir integridade das informações e êxito na atualização da base de dados.
@@ -119,7 +119,13 @@ O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
 ## Exclusão das informações (CAGEDEXC)
 
 Um dos principais desafios do Novo CAGED é processar o arquivo de "Desconsiderados" sem possuir idetificadores únicos, como o CPF, na base pública.
-Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo **CAGEDEXC** para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos.
+Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo **CAGEDEXC** para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos. Essa etapa foi impretentada ao `etl_atualizações.py`
+
+### Script:
+
+```bash
+sql excluir_cagedexc.sql
+```
 
 ---
 
@@ -155,8 +161,8 @@ O dashboard foi desenvolvido para transformar os dados tratados em **insights es
 caged-nordeste-analytics/
 │
 ├── etl/
-│   ├── CAGED_01.py
-│   └── CAGED_02.py
+│   ├── etl_carga_inicial.py
+│   └── etl_atualizações.py
 │
 ├── sql/
 │   └── scripts.sql
@@ -164,9 +170,10 @@ caged-nordeste-analytics/
 ├── powerbi/
 │   └── dashboard.pbix
 │
-├── images/
-│   └── dashboard.png
-│
+├── auxiliary/
+│   └── muni.xlsx
+│   └── cbo.xlsx
+|
 ├── README.md
 └── requirements.txt
 ```
@@ -195,13 +202,13 @@ sql CREATE DATABASE projeto_caged;
 ### Executar carga inicial
 
 ```bash
-python etl/CAGED_01.py
+python etl_carga_inicial.py
 ```
 
 ### Atualizações mensais
 
 ```bash
-python etl/CAGED_02.py
+python etl_atualizações.py
 ```
 
 ---
@@ -211,8 +218,9 @@ python etl/CAGED_02.py
 * Os dados são provenientes de fonte pública oficial (Novo CAGED).
 * O projeto foi desenvolvido para fins educacionais, portfólio e aprimoramento técnico.
 * O pipeline foi estruturado com foco em boas práticas análise de dados.
-* Os comandos referente ao SQL foram implementados no `CAGED_02.py` utilizando-se da função `text`.
+* Os comandos referente ao SQL foram implementados no `etl_atualizações.py` utilizando-se da função `text`.
 * O caminho da FTP sempre deve ser alterado para a comptência que deseja realizar o download.
+* Os ar
 
 
 ---
@@ -220,9 +228,12 @@ python etl/CAGED_02.py
 ## Autor
 
 **Wellington Mariano Pedro**
+
 Estudante de Ciências Econômicas — UFPE
-[Linkedin](https://www.linkedin.com/in/wellington-mariano-985a39231/)
+
 Foco em Data Analytics e Business Intelligence.
+
+[Linkedin](https://www.linkedin.com/in/wellington-mariano-985a39231/)
 
 ---
 
