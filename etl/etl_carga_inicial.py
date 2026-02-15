@@ -46,10 +46,7 @@ try:
           BD_caged['ano'] + '-' + BD_caged['mes'] + '-01'
       )
    
-   if 'cbo2002ocupação' in BD_caged.columns:
-        BD_caged.rename(columns={'cbo2002ocupação': 'cbo'}, inplace=True)
-   
-   colunas = ['data_competencia','ano','mes','região','uf','município','seção','saldomovimentação','graudeinstrução','idade','raçacor','sexo','cbo']
+   colunas = ['data_competencia','ano','mes','região','uf','município','seção','saldomovimentação','graudeinstrução','idade','raçacor','sexo','cbo2002ocupação']
    colunas = [i for i in colunas if i in BD_caged.columns]
    BD_caged = BD_caged[colunas]
 
@@ -118,6 +115,23 @@ try:
    dic_sexo = {"1": "Homem","3": "Mulher"}
    BD_caged['sexo'] = BD_caged['sexo'].map(dic_sexo).fillna('Desconhecido')
 
+   rename_coluna = {
+    'município': 'municipio',
+    'seção': 'secao',
+    'região': 'regiao',
+    'saldomovimentação': 'saldo_movimentacao',
+    'graudeinstrução': 'instrucao',
+    'raçacor': 'raca_cor',
+    'sexo': 'sexo',
+    'idade': 'idade',
+    'cbo2002ocupação': 'cbo'
+   }
+   BD_caged.rename(columns=rename_coluna, inplace=True)
+
+   colunas_numericas = ['saldo_movimentacao', 'idade', 'ano', 'mes']
+   for i in colunas_numericas:
+      BD_caged[i] = pd.to_numeric(BD_caged[i], errors='coerce').fillna(0).astype(int)
+
 except Exception as e:
    print('Ao tentar tratar os microsdados, ocorreu um erro do tipo: {}'.format(e))
 
@@ -127,8 +141,7 @@ try:
 
    insp = inspect(engine)
 
-
-   BD_caged.to_sql('caged_movimentacao', engine, if_exists='append', index=False)
+   BD_caged.to_sql('ft_caged', engine, if_exists='append', index=False)
    print('Código finalizado')
 except Exception as e:
    print("Ao realizar o envio para o SQL ocorreu o erro: {}".format(e))

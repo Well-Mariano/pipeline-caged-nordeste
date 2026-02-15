@@ -6,18 +6,25 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine, text, inspect
 
-ano = '2025'
+# Definindo variáeis 
+ano_atual = '2025'
+competencia = '04'
+ano_filtro = ['2025','2026']
+engine_sql = 'postgresql://postgres:NovaSenha123@localhost/projeto_caged'
+
 # Entrando na FTP do MTE:
+print('1/6 - Entrando na FTP do MTE')
 try:
    ftp = ftplib.FTP('ftp.mtps.gov.br')
    ftp.encoding = 'latin-1'
    ftp.login()
-   ftp.cwd('/pdet/microdados/NOVO CAGED/2025/202512/')
+   ftp.cwd('/pdet/microdados/NOVO CAGED/{}/2025{}/'.format(ano_atual,competencia))
 except Exception as e:
    print("Ao tentar entrar na FTP, ocorreu um erro do tipo: {}".format(e))
 
-print('1/6')
 # baixando os arquivos:
+print('2/6 - Baixando os arquivos')
+print('   2.1 - Baixando arquivo CAGEDMOV')
 try:
    arquivo = ftp.nlst()
    arquivo_caged = [i for i in arquivo if 'CAGEDMOV' in i.upper() and i.endswith('.7z')]
@@ -27,6 +34,7 @@ try:
 except Exception as e:
    print('Ao tentar baixar o CAGEDMOV, ocorreu um erro do tipo: {}'.format(e))
 
+print('   2.2 - Baixando arquivo CAGEDFOR')
 try:
    arquivo_caged = [i for i in arquivo if 'CAGEDFOR' in i.upper() and i.endswith('.7z')]
    caged_for = arquivo_caged[0]
@@ -35,6 +43,7 @@ try:
 except Exception as e:
    print('Ao tentar baixar o CAGEDFOR, ocorreu um erro do tipo: {}'.format(e))
 
+print('   2.3 - Baixando arquivo CAGEDEXC')
 try:
    arquivo_caged = [i for i in arquivo if 'CAGEDEXC' in i.upper() and i.endswith('.7z')]
    caged_exc = arquivo_caged[0]
@@ -44,28 +53,73 @@ try:
 except Exception as e:
    print('Ao tentar baixar o CAGEDEXC, ocorreu um erro do tipo: {}'.format(e))
 
-print('2/6')
 # Descompactando os arquivos:
+print('3/6 - Descompactando os arquivos')
+print('   3.1 - Descompactando o CAGEDMOV')
 try:
    with py7zr.SevenZipFile(caged_mov, mode='r') as z:
       z.extractall()
 except Exception as e:
    print('Ao tentar descompactar o arquivo MOV, ocorreu um erro do tipo: {}'.format(e))
 
+print('   3.2 - Descompactando o CAGEDFOR')
 try:
    with py7zr.SevenZipFile(caged_for, mode='r') as z:
       z.extractall()
 except Exception as e:
    print('Ao tentar descompactar o arquivo FOR, ocorreu um erro do tipo: {}'.format(e))
    
+print('   3.3 - Descompactando o CAGEDEXC')
 try:
    with py7zr.SevenZipFile(caged_exc, mode='r') as z:
       z.extractall()
 except Exception as e:
    print('Ao tentar descompactar o arquivo EXC, ocorreu um erro do tipo: {}'.format(e))
 
-print('3/6')
 # Upload e tratamento dos microdados:
+print('4/6 - Tratando os microdados')
+
+## Definindo os dicionários
+colunas = ['data_competencia','ano','mes','região','uf','município','seção','saldomovimentação','graudeinstrução','idade','raçacor','sexo','cbo2002ocupação']
+
+dic_regiao = {"1": "Norte","2": "Nordeste","3": "Sudeste","4": "Sul","5": "Centro-Oeste"}
+
+dic_secao = {
+    "A": "Agricultura, pecuária e serviços relacionados","B": "Industria extrativa","C": "Industria de transformação","D": "Eletricidade e gás",
+    "E": "Agua, esgoto, atividades de gestão de resíduos e descontaminação","F": "Construção",
+    "G": "Comércio, reparação de veículos e motocicletas",
+    "H": "Transporte, armazenagem e correio",
+    "I": "Alojamento e alimentação",
+    "J": "Informação e comunicação",
+    "K": "Atividades financeiras, de seguros e serviços relacionados",
+    "L": "Atividades imobiliárias",
+    "M": "Atividades profissionais, científicas e técnicas",
+    "N": "Atividades administrativas e serviços complementares",
+    "O": "Administração pública, defesa e seguridade social",
+    "P": "Educação",
+    "Q": "Saúde humana e serviços sociais",
+    "R": "Artes, cultura, esporte e recreação",
+    "S": "Outras atividades de serviços",
+    "T": "Serviços domésticos",
+    "U": "Organismos internacionais e outras instituições extraterritoriais"}
+
+dic_uf = {
+    "11": "Rondônia", "12": "Acre", "13": "Amazonas", "14": "Roraima","15": "Pará", "16": "Amapá", "17": "Tocantins","21": "Maranhão", "22": "Piauí", "23": "Ceará", "24": "Rio Grande do Norte","25": "Paraíba", "26": "Pernambuco", "27": "Alagoas", "28": "Sergipe",
+    "29": "Bahia","31": "Minas Gerais", "32": "Espírito Santo", "33": "Rio de Janeiro", "35": "São Paulo","41": "Paraná", "42": "Santa Catarina", "43": "Rio Grande do Sul","50": "Mato Grosso do Sul", "51": "Mato Grosso", "52": "Goiás", "53": "Distrito Federal"}
+
+dic_graudeinstrucao = {
+   "1": "Analfabeto","2": "Até 5º Incompleto","3": "5º Completo Fundamental","4": "6º a 9º Fundamental","5": "Fundamental Completo","6": "Médio Incompleto","7": "Médio Completo","8": "Superior Incompleto","9": "Superior Completo","10": "Mestrado","11": "Doutorado","80": "Pós-graduação completa"}
+
+dic_raca = {"1": "Branca","2": "Preta","3": "Parda","4": "Amarela","5": "Indígena"}
+
+dic_sexo = {"1": "Homem","3": "Mulher"}
+
+rename_coluna = {
+    'município': 'municipio','seção': 'secao','região': 'regiao','saldomovimentação': 'saldo_movimentacao','graudeinstrução': 'instrucao','raçacor': 'raca_cor','sexo': 'sexo','idade': 'idade','cbo2002ocupação': 'cbo'}
+
+colunas_numericas = ['saldo_movimentacao', 'idade', 'ano', 'mes']
+
+print('   4.1 - Tratando o arquivo CAGEDMOV')
 try:
    caged_mov_txt = caged_mov.replace('.7z','.txt')
    BD_caged = pd.read_csv(caged_mov_txt, sep = ';', encoding = 'utf-8-sig', dtype=str)
@@ -78,14 +132,9 @@ try:
           BD_caged['ano'] + '-' + BD_caged['mes'] + '-01'
       )
    
-   if 'cbo2002ocupação' in BD_caged.columns:
-        BD_caged.rename(columns={'cbo2002ocupação': 'cbo'}, inplace=True)
-   
-   colunas = ['data_competencia','ano','mes','região','uf','município','seção','saldomovimentação','graudeinstrução','idade','raçacor','sexo','cbo']
    colunas = [i for i in colunas if i in BD_caged.columns]
    BD_caged = BD_caged[colunas]
    
-   dic_regiao = {"1": "Norte","2": "Nordeste","3": "Sudeste","4": "Sul","5": "Centro-Oeste"}
    BD_caged['região'] = BD_caged['região'].map(dic_regiao).fillna('Desconhecido')
    BD_caged = BD_caged[BD_caged['região'] == 'Nordeste'].copy()
   
@@ -110,44 +159,25 @@ try:
        default='Desconhecidos'
    )
 
-   dic_secao = {
-    "A": "Agricultura, pecuária e serviços relacionados","B": "Industria extrativa","C": "Industria de transformação","D": "Eletricidade e gás",
-    "E": "Agua, esgoto, atividades de gestão de resíduos e descontaminação","F": "Construção",
-    "G": "Comércio, reparação de veículos e motocicletas",
-    "H": "Transporte, armazenagem e correio",
-    "I": "Alojamento e alimentação",
-    "J": "Informação e comunicação",
-    "K": "Atividades financeiras, de seguros e serviços relacionados",
-    "L": "Atividades imobiliárias",
-    "M": "Atividades profissionais, científicas e técnicas",
-    "N": "Atividades administrativas e serviços complementares",
-    "O": "Administração pública, defesa e seguridade social",
-    "P": "Educação",
-    "Q": "Saúde humana e serviços sociais",
-    "R": "Artes, cultura, esporte e recreação",
-    "S": "Outras atividades de serviços",
-    "T": "Serviços domésticos",
-    "U": "Organismos internacionais e outras instituições extraterritoriais"
-    }
    BD_caged['seção'] = BD_caged['seção'].map(dic_secao).fillna('Desconhecido')
 
-   dic_uf = {
-    "11": "Rondônia", "12": "Acre", "13": "Amazonas", "14": "Roraima","15": "Pará", "16": "Amapá", "17": "Tocantins","21": "Maranhão", "22": "Piauí", "23": "Ceará", "24": "Rio Grande do Norte","25": "Paraíba", "26": "Pernambuco", "27": "Alagoas", "28": "Sergipe",
-    "29": "Bahia","31": "Minas Gerais", "32": "Espírito Santo", "33": "Rio de Janeiro", "35": "São Paulo","41": "Paraná", "42": "Santa Catarina", "43": "Rio Grande do Sul","50": "Mato Grosso do Sul", "51": "Mato Grosso", "52": "Goiás", "53": "Distrito Federal"}
    BD_caged['uf'] = BD_caged['uf'].map(dic_uf).fillna('Desconhecido')
 
-   dic_graudeinstrucao = {"1": "Analfabeto","2": "Até 5º Incompleto","3": "5º Completo Fundamental","4": "6º a 9º Fundamental","5": "Fundamental Completo","6": "Médio Incompleto","7": "Médio Completo","8": "Superior Incompleto","9": "Superior Completo","10": "Mestrado","11": "Doutorado","80": "Pós-graduação completa"}
    BD_caged['graudeinstrução'] = BD_caged['graudeinstrução'].map(dic_graudeinstrucao).fillna('Desconhecido')
 
-   dic_raca = {"1": "Branca","2": "Preta","3": "Parda","4": "Amarela","5": "Indígena"}
    BD_caged['raçacor'] = BD_caged['raçacor'].map(dic_raca).fillna('Desconhecido')
 
-   dic_sexo = {"1": "Homem","3": "Mulher"}
    BD_caged['sexo'] = BD_caged['sexo'].map(dic_sexo).fillna('Desconhecido')
+
+   BD_caged.rename(columns=rename_coluna, inplace=True)
+
+   for i in colunas_numericas:
+      BD_caged[i] = pd.to_numeric(BD_caged[i], errors='coerce').fillna(0).astype(int)
 
 except Exception as e:
    print('Ao tentar tratar o CAGED MOV, ocorreu um erro do tipo: {}'.format(e))
 
+print('   4.2 - Tratando o arquivo CAGEDFOR')
 try:
    caged_for_txt = caged_for.replace('.7z','.txt')
    BD_caged_for = pd.read_csv(caged_for_txt, sep = ';', encoding = 'utf-8-sig', dtype=str)
@@ -160,13 +190,10 @@ try:
           BD_caged_for['ano'] + '-' + BD_caged_for['mes'] + '-01'
       )
 
-   if 'cbo2002ocupação' in BD_caged_for.columns:
-        BD_caged_for.rename(columns={'cbo2002ocupação': 'cbo'}, inplace=True)
-   
    colunas = [i for i in colunas if i in BD_caged_for.columns]
    BD_caged_for = BD_caged_for[colunas]
    
-   BD_caged_for = BD_caged_for[BD_caged_for['ano'] == ano].copy()
+   BD_caged_for = BD_caged_for[BD_caged_for['ano'].isin(ano_filtro)].copy()
 
    BD_caged_for['região'] = BD_caged_for['região'].map(dic_regiao).fillna('Desconhecido')
    BD_caged_for = BD_caged_for[BD_caged_for['região'] == 'Nordeste'].copy()
@@ -202,9 +229,16 @@ try:
 
    BD_caged_for['sexo'] = BD_caged_for['sexo'].map(dic_sexo).fillna('Desconhecido')
 
+   BD_caged_for.rename(columns=rename_coluna, inplace=True)
+
+   for i in colunas_numericas:
+      BD_caged_for[i] = pd.to_numeric(BD_caged_for[i], errors='coerce').fillna(0).astype(int)
+
 except Exception as e:
    print('Ao tentar tratar o CAGED FOR, ocorreu um erro do tipo: {}'.format(e))
 
+
+print('   4.3 - Tratando o arquivo CAGEDEXC')
 try:
    caged_exc_txt = caged_exc.replace('.7z','.txt')
    BD_caged_exc = pd.read_csv(caged_exc_txt, sep = ';', encoding = 'utf-8-sig', dtype=str)
@@ -217,13 +251,10 @@ try:
           BD_caged_exc['ano'] + '-' + BD_caged_exc['mes'] + '-01'
       )
 
-   if 'cbo2002ocupação' in BD_caged_exc.columns:
-        BD_caged_exc.rename(columns={'cbo2002ocupação': 'cbo'}, inplace=True)
-   
    colunas = [i for i in colunas if i in BD_caged_exc.columns]
    BD_caged_exc = BD_caged_exc[colunas]
-   
-   BD_caged_exc = BD_caged_exc[BD_caged_exc['ano'] == ano].copy()
+
+   BD_caged_exc = BD_caged_exc[BD_caged_exc['ano'].isin(ano_filtro)].copy()
 
    BD_caged_exc['região'] = BD_caged_exc['região'].map(dic_regiao).fillna('Desconhecido')
    BD_caged_exc = BD_caged_exc[BD_caged_exc['região'] == 'Nordeste'].copy()
@@ -259,20 +290,32 @@ try:
 
    BD_caged_exc['sexo'] = BD_caged_exc['sexo'].map(dic_sexo).fillna('Desconhecido')
 
+   BD_caged_exc.rename(columns=rename_coluna, inplace=True)
+
+   for i in colunas_numericas:
+      BD_caged_exc[i] = pd.to_numeric(BD_caged_exc[i], errors='coerce').fillna(0).astype(int)
+
 except Exception as e:
    print('Ao tentar tratar o CAGED EXC, ocorreu um erro do tipo: {}'.format(e))
 
-print('4/6')
 # Unindo os banco de dados FOR e MOV
+print('5/6 - Unindo os arquivos CAGEDFOR e CAGEDMOV')
 try:
    BD_caged_join = pd.concat([BD_caged_for,BD_caged], ignore_index=True)
 except Exception as e:
    print('Ao unir os bancos de dados, ocorreu um erro do tipo: {}'.format(e))
 
-print('5/6')
 #Conectando com o PostgreSQL e enviando a Base de dados
+print('6/6 - Enviando os arquivos para o PostgreSQL')
+
+print('   6.1 - Conectando ao PostgreSQL')
 try:
-   engine = create_engine('postgresql://postgres:NovaSenha123@localhost/projeto_caged')
+   engine =  create_engine(engine_sql)
+except Exception as e:
+   print('Ao tentar se conetar ao PostgreSQL, ocorreu um erro do tipo: {}'.format(e))
+
+print('   6.1 - Processando arquivo CAGEDEXC')
+try:
    BD_caged_exc.to_sql('tabela_temp_exc', engine, if_exists='replace',index=False)
    apagar = text(f"""
         WITH pares_para_apagar AS (
@@ -281,43 +324,45 @@ try:
             FROM (
                 SELECT 
                     ctid, 
-                    ano, mes, "município", "saldomovimentação", idade, sexo, cbo,
+                    ano, mes, municipio, saldo_movimentacao, idade, sexo, cbo,
                     ROW_NUMBER() OVER (
-                        PARTITION BY ano, mes, "município", "saldomovimentação", idade, sexo, cbo 
+                        PARTITION BY ano, mes, municipio, saldo_movimentacao, idade, sexo, cbo
                         ORDER BY ctid
                     ) as rn_main
-                FROM caged_movimentacao
-            ) m
+                FROM ft_caged
+            ) AS m
             JOIN (
                 SELECT 
-                    ano, mes, "município", "saldomovimentação", idade, sexo, cbo,
+                    ano, mes, municipio, saldo_movimentacao, idade, sexo, cbo,
                     ROW_NUMBER() OVER (
-                        PARTITION BY ano, mes, "município", "saldomovimentação", idade, sexo, cbo 
+                        PARTITION BY ano, mes, municipio, saldo_movimentacao, idade, sexo, cbo 
                         ORDER BY 1
                     ) as rn_dex
                 FROM tabela_temp_exc
-            ) d
+            ) AS d
             ON  m.ano = d.ano
             AND m.mes = d.mes
-            AND m."município" = d."município"
-            AND m."saldomovimentação" = d."saldomovimentação"
+            AND m.municipio = d.municipio
+            AND m.saldo_movimentacao = d.saldo_movimentacao
             AND m.idade = d.idade
             AND m.sexo = d.sexo
             AND m.cbo = d.cbo
             AND m.rn_main = d.rn_dex
         )
-        DELETE FROM caged_movimentacao
+        DELETE FROM ft_caged
         WHERE ctid IN (SELECT ctid FROM pares_para_apagar);
     """)
    
    with engine.begin() as conectar:
       resultado = conectar.execute(apagar)
       conectar.execute(text("DROP TABLE tabela_temp_exc"))
+
 except Exception as e:
    print("Ao tentar apagar os erros da compeência anterios, ocorreu um erro do tipo: {}".format(e))
 
+print('   6.2 - Processando arquivos CAEDMOV E CAGEDFOR')
 try:
-   BD_caged_join.to_sql('caged_movimentacao', engine, if_exists='append', index=False)
+   BD_caged_join.to_sql('ft_caged', engine, if_exists='append', index=False)
 except Exception as e:
    print("ao tentar enviar o bando de dados MOV e FOR, ocorreu um erro do tipo {}".format(e))
-print('6/6')
+print('Atualização realizada com sucesso, código finalizado.')
