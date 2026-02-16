@@ -6,14 +6,14 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine, text, inspect
 
-# Definindo variáeis 
+# Confgurando o ETL
 ano_atual = '2025'
-competencia = '04'
+competencia = '12'
 ano_filtro = ['2025','2026']
 engine_sql = 'postgresql://postgres:NovaSenha123@localhost/projeto_caged'
 
 # Entrando na FTP do MTE:
-print('1/6 - Entrando na FTP do MTE')
+print('1/7 - Entrando na FTP do MTE')
 try:
    ftp = ftplib.FTP('ftp.mtps.gov.br')
    ftp.encoding = 'latin-1'
@@ -23,7 +23,7 @@ except Exception as e:
    print("Ao tentar entrar na FTP, ocorreu um erro do tipo: {}".format(e))
 
 # baixando os arquivos:
-print('2/6 - Baixando os arquivos')
+print('2/7 - Baixando os arquivos')
 print('   2.1 - Baixando arquivo CAGEDMOV')
 try:
    arquivo = ftp.nlst()
@@ -54,7 +54,7 @@ except Exception as e:
    print('Ao tentar baixar o CAGEDEXC, ocorreu um erro do tipo: {}'.format(e))
 
 # Descompactando os arquivos:
-print('3/6 - Descompactando os arquivos')
+print('3/7 - Descompactando os arquivos')
 print('   3.1 - Descompactando o CAGEDMOV')
 try:
    with py7zr.SevenZipFile(caged_mov, mode='r') as z:
@@ -77,7 +77,7 @@ except Exception as e:
    print('Ao tentar descompactar o arquivo EXC, ocorreu um erro do tipo: {}'.format(e))
 
 # Upload e tratamento dos microdados:
-print('4/6 - Tratando os microdados')
+print('4/7 - Tratando os microdados')
 
 ## Definindo os dicionários
 colunas = ['data_competencia','ano','mes','região','uf','município','seção','saldomovimentação','graudeinstrução','idade','raçacor','sexo','cbo2002ocupação']
@@ -299,14 +299,14 @@ except Exception as e:
    print('Ao tentar tratar o CAGED EXC, ocorreu um erro do tipo: {}'.format(e))
 
 # Unindo os banco de dados FOR e MOV
-print('5/6 - Unindo os arquivos CAGEDFOR e CAGEDMOV')
+print('5/7 - Unindo os arquivos CAGEDFOR e CAGEDMOV')
 try:
    BD_caged_join = pd.concat([BD_caged_for,BD_caged], ignore_index=True)
 except Exception as e:
    print('Ao unir os bancos de dados, ocorreu um erro do tipo: {}'.format(e))
 
 #Conectando com o PostgreSQL e enviando a Base de dados
-print('6/6 - Enviando os arquivos para o PostgreSQL')
+print('6/7 - Enviando os arquivos para o PostgreSQL')
 
 print('   6.1 - Conectando ao PostgreSQL')
 try:
@@ -314,7 +314,7 @@ try:
 except Exception as e:
    print('Ao tentar se conetar ao PostgreSQL, ocorreu um erro do tipo: {}'.format(e))
 
-print('   6.1 - Processando arquivo CAGEDEXC')
+print('   6.2 - Processando arquivo CAGEDEXC')
 try:
    BD_caged_exc.to_sql('tabela_temp_exc', engine, if_exists='replace',index=False)
    apagar = text(f"""
@@ -360,9 +360,21 @@ try:
 except Exception as e:
    print("Ao tentar apagar os erros da compeência anterios, ocorreu um erro do tipo: {}".format(e))
 
-print('   6.2 - Processando arquivos CAEDMOV E CAGEDFOR')
+print('   6.3 - Processando arquivos CAEDMOV E CAGEDFOR')
 try:
    BD_caged_join.to_sql('ft_caged', engine, if_exists='append', index=False)
 except Exception as e:
    print("ao tentar enviar o bando de dados MOV e FOR, ocorreu um erro do tipo {}".format(e))
-print('Atualização realizada com sucesso, código finalizado.')
+
+#Excluir arquivos baixados
+print('7/7 - Apagando arquivos baixados')
+arquivos_delete = [caged_mov,caged_for,caged_exc,caged_mov_txt,caged_for_txt,caged_exc_txt]
+
+for i in arquivos_delete:
+   try:
+      if os.path.exists(i):
+         os.remove(i)
+   except Exception as e:
+      print('Não foi possível remover o arquivo {}!'.format(i))
+
+print('Atluzação da base de dados e limpeza realizada.')

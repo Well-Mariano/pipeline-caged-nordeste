@@ -12,3 +12,6 @@ env/
 
 
 *.pbix.autosave
+
+*.pbix
+dashboard/
