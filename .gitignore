@@ -1,17 +1,36 @@
-
-data/raw/
-data/processed/
-
-
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
 
+# Distribution / packaging
+.Python
+build/
+dist/
+.egg-info/
 
-.venv/
+# Virtual environments
+venv/
+ENV/
 env/
+.env
 
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.sublime-project
+*.sublime-workspace
 
-*.pbix.autosave
+# Environment variables
+*.env
 
-*.pbix
-dashboard/
+# SQLite database files
+*.sqlite
+*.sqlite3
+
+# Data artifacts
+*.csv
+*.json
+*.xlsx
+*.xls
