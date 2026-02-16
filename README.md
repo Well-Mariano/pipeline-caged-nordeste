@@ -36,7 +36,7 @@ Python (ETL) → PostgreSQL (Data warehouse) → Power BI (Visualiação)
 
 ---
 
-## Tecnologias Utilizadas
+## Ferramentas Utilizadas
 
 * **Python** — Extração (Via FTP), tratamento e automação do pipeline (ETL)
 * **Pandas & NumPy** — Manipulação e transformação de dados
