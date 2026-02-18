@@ -309,10 +309,13 @@ except Exception as e:
 print('6/7 - Enviando os arquivos para o PostgreSQL')
 
 print('   6.1 - Conectando ao PostgreSQL')
+engine = None
+
 try:
    engine =  create_engine(engine_sql)
 except Exception as e:
    print('Ao tentar se conetar ao PostgreSQL, ocorreu um erro do tipo: {}'.format(e))
+   exit()
 
 print('   6.2 - Processando arquivo CAGEDEXC')
 try:
@@ -362,7 +365,7 @@ except Exception as e:
 
 print('   6.3 - Processando arquivos CAEDMOV E CAGEDFOR')
 try:
-   BD_caged_join.to_sql('ft_caged', engine, if_exists='append', index=False)
+   BD_caged_join.to_sql('ft_caged', engine, if_exists='append', index=False, chunksize=10000)
 except Exception as e:
    print("ao tentar enviar o bando de dados MOV e FOR, ocorreu um erro do tipo {}".format(e))
 
