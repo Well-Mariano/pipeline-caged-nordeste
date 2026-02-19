@@ -23,7 +23,7 @@ Construir uma solução analítica que permita:
 O pipeline de dados foi estruturado em três principais camadas:
 
 ```
-Python (ETL) → PostgreSQL (Armazenamento) → Power BI (Visualiação)
+Python (ETL) → PostgreSQL (Data warehouse) → Power BI (Visualização)
 ```
 
 ### Fluxo Geral:
@@ -36,7 +36,7 @@ Python (ETL) → PostgreSQL (Armazenamento) → Power BI (Visualiação)
 
 ---
 
-## Tecnologias Utilizadas
+## Ferramentas Utilizadas
 
 * **Python** — Extração (Via FTP), tratamento e automação do pipeline (ETL)
 * **Pandas & NumPy** — Manipulação e transformação de dados
@@ -45,87 +45,83 @@ Python (ETL) → PostgreSQL (Armazenamento) → Power BI (Visualiação)
 
 ---
 
-## Estrutura do Pipeline ETL
+## Estrutura do Pipeline ETL (`etl_caged.py`)
 
-O pipeline em Python foi dividido em **dois scripts principais**, garantindo escalabilidade e facilidade de atualização.
+O script `etl_caged.py` implementa um pipeline completo de ETL (Extract, Transform, Load) para coleta, tratamento e armazenamento dos microdados do Novo CAGED no PostgreSQL. O processo é dividido em 6 etapas principais:
 
-### Script 1 — CARGA INICIAL (`etl_carga_inicial.py`)
+### 1. Configuração inicial
 
-Responsável por realizar a **primeira carga** da base de dados.
+Nesta etapa são definidas as variáveis de controle do ETL:
+* **ano_atual**: ano da competência a ser processada
+* **competencia**: mês da competência
+* **ano_filtro**: lista de anos considerados válidos
+* **engine_sql**: string de conexão com o PostgreSQL
 
-**Etapas:**
+### 2. Extração dos dados (Extract)
 
-* Conexão com o FTP do Ministério do Trabalho;
-* Download do arquivo CAGEDMOV;
-* Descompactação automática;
-* Leitura e tratamento dos dados;
-* Padronização de colunas;
-* Criação de variáveis derivadas:
-
-  * Setor econômico
-  * Faixa etária
-* Filtragem apenas da região Nordeste;
-* Envio da base tratada para o PostgreSQL.
-
-**Uso:**
-
+O script conecta-se ao servidor FTP do Ministério do Trabalho:
 ```bash
-python etl_carga_inicial.py
+ftp.mtps.gov.br/pdet/microdados/NOVO CAGED/
 ```
+São baixados três arquivos principais:
+* **CAGEDMOV** - Movimentações mensais
+* **CAGEDFOR** - Movimentações fora do prazo
+* **CAGEDEXC** - Exclusões e ajustes
+Os arquivos são baixados no formato `.7z`.
 
-Este script deve ser executado **apenas na primeira carga do projeto**.
+### 3. Descompactação
+
+Os arquivos `.7z` são extraídos automaticamente utilizando a biblioteca `py7zr`, gerando arquivos `.txt` contendo os microdados.
+
+### 4. Transformação dos dados (Transform)
+
+Esta é a etapa mais importante do pipeline, onde os dados são tratados e padronizados. Ela se divide em:
+* Leitura dos arquivos `.txt`
+* Criação e conversão de colunas
+* Filtro geográfico: `Nordeste`
+* Tradução de códigos para valores descritivos
+* Criação de variáveis derivadas
+* Padronização dos nomes das colunas
+* União dos dados (`CAGEDMOV` + `CAGEDFOR`)
+
+### 5. Carga no banco de dados (Load)
+
+O script conecta-se ao PostgreSQL utilizando `SQLAlchemy`. Esta etapa segue o seguinte processo:
+* Cria tabela temporária para processar o arquivo `CAGEDEXC`
+* Identifica os registros inválidos e remove da tabela principal (`ft_caged`)
+* Exclui tabela temporária
+* Os dados tratados (`CAGEDMOV` + `CAGEDFOR`) são inseridos na tabela principal
+
+### 6. Limpeza dos arquivos baixados
+
+Após a carga no banco, os arquivos baixados (`CAGEDMOV`, `CAGEDFOR` e `CAGEDEXC`) são removidos automaticamente para evitar acúmulo desnecessáro de dados:
+* Arquivos `.7z`
+* Arquivos `.txt`
 
 ---
-
-### Script 2 — ATUALIZAÇÃO MENSAL (`etl_atualizações.py`)
-
-Responsável por **atualizar automaticamente** a base com novas competências mensais, lidando com três tipos de arquivos do CAGED (CAGEDMOV, CAGEDFOR e CAGEDEXC).
-
-**Etapas:**
-
-* Download dos arquivos:
-
-  * CAGEDMOV (movimentações)
-  * CAGEDFOR (movimentações fora do prazo)
-  * CAGEDEXC (exclusão das movimentações)
-* Tratamento e padronização dos dados;
-* Identificação e remoção de registros duplicados (código SQL);
-* Atualização incremental da base PostgreSQL;
-* Garantia de integridade dos dados.
-
-**Uso:**
-
-```bash
-python etl_atualizações.py
-```
-
-Este script deve ser executado **sempre que houver nova competência disponível** para garantir integridade das informações e êxito na atualização da base de dados.
-
----
-
-## Banco de Dados — PostgreSQL
-
-O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
-
-* Persistência dos dados históricos;
-* Atualizações incrementais;
-* Organização estruturada da base;
-* Integração direta com o Power BI.
-
-**Tabela principal:**
-
-* `caged_movimentacao`
-
 ## Exclusão das informações (CAGEDEXC)
 
-Um dos principais desafios do Novo CAGED é processar o arquivo de "Desconsiderados" sem possuir idetificadores únicos, como o CPF, na base pública.
-Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo **CAGEDEXC** para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos. Essa etapa foi impretentada ao `etl_atualizações.py`
+Um dos principais desafios dos microdados do Novo CAGED é processar o arquivo de "Desconsiderados" sem possuir idetificadores únicos, como o CPF, na base pública.
+Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo **CAGEDEXC** para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos. Essa etapa foi impretentada ao `etl_caged.py`
 
 ### Script:
 
 ```bash
 sql excluir_cagedexc.sql
 ```
+---
+## Banco de Dados — PostgreSQL
+
+O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
+
+* Persistência dos dados históricos;
+* Atualizações e ajustes incrementais;
+* Organização estruturada da base;
+* Integração direta com o Power BI.
+
+**Tabela principal:**
+
+* `ft_caged`
 
 ---
 
@@ -145,7 +141,7 @@ O dashboard foi desenvolvido para transformar os dados tratados em **insights es
 
 ### Funcionalidades Analíticas:
 
-* Filtros dinâmicos por período, estado e CBO
+* Filtros dinâmicos por período, estado e setor econômico
 * Drill-down setorial (setor → subsetor)
 * Análise temporal
 * Segmentações demográficas
@@ -154,21 +150,18 @@ O dashboard foi desenvolvido para transformar os dados tratados em **insights es
 [LINK](https://app.powerbi.com/view?r=eyJrIjoiZjc3MGYwNTUtOTkwNy00ZGNjLWEwZjEtNWI1ODVkMDNkNWRkIiwidCI6ImUyZjc3ZDAwLTAxNjMtNGNmNi05MmIwLTQ4NGJhZmY5ZGY3ZCJ9)
 
 ---
-
 ## Estrutura do Repositório
 
 ```
-caged-nordeste-analytics/
+pipeline - caged - nordeste
 │
 ├── etl/
-│   ├── etl_carga_inicial.py
-│   └── etl_atualizações.py
+│   └── etl_caged.py
 │
 ├── sql/
-│   └── scripts.sql
-│
-├── powerbi/
-│   └── dashboard.pbix
+│   └── create_database.sql
+│   └── create_table_caged.sql
+│   └── delete_cagedexc.sql
 │
 ├── auxiliary/
 │   └── muni.xlsx
@@ -196,35 +189,37 @@ pip install -r requirements.txt
 ### Criação do Banco de dados
 
 ```bash
-sql CREATE DATABASE projeto_caged;
+sql create_database.sql
+```
+
+### Criação da tabela principal
+
+```bash
+sql create_table_caged.sql
 ```
 
 ### Executar carga inicial
 
 ```bash
-python etl_carga_inicial.py
+python etl_caged.py
 ```
 
 ### Atualizações mensais
 
 ```bash
-python etl_atualizações.py
+python etl_caged.py
 ```
 
 ---
-
 ## Observações
 
-* Os dados são provenientes de fonte pública oficial (Novo CAGED).
+* Os dados são provenientes de fonte pública oficial ([Novo CAGED](https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/microdados-rais-e-caged)).
 * O projeto foi desenvolvido para fins educacionais, portfólio e aprimoramento técnico.
 * O pipeline foi estruturado com foco em boas práticas análise de dados.
-* Os comandos referente ao SQL foram implementados no `etl_atualizações.py` utilizando-se da função `text`.
-* O caminho da FTP sempre deve ser alterado para a comptência que deseja realizar o download.
-* Os ar
-
+* Alguns comandos referente ao SQL foram implementados no `etl_caged.py` utilizando-se da função `text`.
+* As variáveis de controle sempre deve ser alterada para a competência desejada.
 
 ---
-
 ## Autor
 
 **Wellington Mariano Pedro**
@@ -236,7 +231,11 @@ Foco em Data Analytics e Business Intelligence.
 [Linkedin](https://www.linkedin.com/in/wellington-mariano-985a39231/)
 
 ---
+## Licença
 
+Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+---
 ## Considerações Finais
 
 Este projeto demonstra a construção de uma solução analítica completa, indo desde a ingestão automatizada dos dados até a geração de insights estratégicos por meio de dashboards interativos.

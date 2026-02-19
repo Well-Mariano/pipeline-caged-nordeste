@@ -1,0 +1,9 @@
+ftplib
+os
+py7zr
+numpy
+pandas
+sqlalchemy
+
+# Imports
+# from sqlalchemy import create_engine, text, inspect
