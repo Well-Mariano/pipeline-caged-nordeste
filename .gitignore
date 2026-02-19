@@ -34,3 +34,5 @@ env/
 *.json
 *.xlsx
 *.xls
+
+*.pbix
