@@ -240,10 +240,13 @@ python etl/etl_caged.py
 ## Autor
 
 **Wellington Mariano Pedro**
+
 Estudante de Ciências Econômicas — UFPE
+
 Foco em Data Analytics e Business Intelligence.
 
 Linkedin: [https://linkedin.com/in/wellington-mariano](https://www.linkedin.com/in/wellington-mariano-985a39231/)
+
 GitHub: [https://github.com/Well-Mariano](https://github.com/Well-Mariano)
 
 ---
