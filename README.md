@@ -23,7 +23,13 @@ Construir uma solução analítica que permita:
 O pipeline de dados foi estruturado em três principais camadas:
 
 ```
-Python (ETL) → PostgreSQL (Data warehouse) → Power BI (Visualização)
+FTP (Novo CAGED)
+     ↓
+Python ETL (Pandas, SQLAlchemy)
+     ↓
+PostgreSQL (Data Warehouse)
+     ↓
+Power BI (Dashboard)
 ```
 
 ### Fluxo Geral:
@@ -94,15 +100,15 @@ O script conecta-se ao PostgreSQL utilizando `SQLAlchemy`. Esta etapa segue o se
 
 ### 6. Limpeza dos arquivos baixados
 
-Após a carga no banco, os arquivos baixados (`CAGEDMOV`, `CAGEDFOR` e `CAGEDEXC`) são removidos automaticamente para evitar acúmulo desnecessáro de dados:
+Após a carga no banco, os arquivos baixados (`CAGEDMOV`, `CAGEDFOR` e `CAGEDEXC`) são removidos automaticamente para evitar acúmulo desnecessário de dados:
 * Arquivos `.7z`
 * Arquivos `.txt`
 
 ---
 ## Exclusão das informações (CAGEDEXC)
 
-Um dos principais desafios dos microdados do Novo CAGED é processar o arquivo de "Desconsiderados" sem possuir idetificadores únicos, como o CPF, na base pública.
-Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo **CAGEDEXC** para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos. Essa etapa foi impretentada ao `etl_caged.py`
+Um dos principais desafios dos microdados do Novo CAGED é processar o arquivo de "Desconsiderados" sem possuir identificadores únicos, como o CPF, na base pública.
+Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo **CAGEDEXC** para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos. Essa etapa foi implementada ao `etl_caged.py`
 
 ### Script:
 
@@ -119,9 +125,27 @@ O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
 * Organização estruturada da base;
 * Integração direta com o Power BI.
 
-**Tabela principal:**
+## Arquitetura do Banco
 
+**Tabela fato:**
 * `ft_caged`
+
+**Principais campos:**
+* data_competencia
+* ano
+* mes
+* regiao
+* uf
+* municipio
+* secao
+* saldo_movimentacao
+* instrucao
+* idade
+* raca_cor
+* sexo
+* cbo
+* setor
+* faixa_etaria
 
 ---
 
@@ -129,31 +153,31 @@ O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
 
 O dashboard foi desenvolvido para transformar os dados tratados em **insights estratégicos**, permitindo uma análise clara, dinâmica e interativa do mercado de trabalho formal no Nordeste.
 
-### Principais Indicadores:
+### Visão Geral
 
-* Total de admissões
-* Total de desligamentos
-* Saldo líquido de empregos
-* Evolução mensal do saldo
-* Ranking dos estados
-* Distribuição setorial
-* Análise demográfica
+![Visão Geral](docs/dashboard_geral.png)
 
-### Funcionalidades Analíticas:
+### Análise Setorial
 
-* Filtros dinâmicos por período, estado e setor econômico
-* Drill-down setorial (setor → subsetor)
-* Análise temporal
-* Segmentações demográficas
+![Análise Setorial](docs/dashboard_setor.png)
 
-🔗 **Dashboard Interativo:**
-[LINK](https://app.powerbi.com/view?r=eyJrIjoiZjc3MGYwNTUtOTkwNy00ZGNjLWEwZjEtNWI1ODVkMDNkNWRkIiwidCI6ImUyZjc3ZDAwLTAxNjMtNGNmNi05MmIwLTQ4NGJhZmY5ZGY3ZCJ9)
+### Análise Demográfica
+
+![Análise Demográfica](docs/dashboard_demografia.png)
+
+🔗 **Dashboard:**
+[Clique aqui](https://app.powerbi.com/view?r=eyJrIjoiZjc3MGYwNTUtOTkwNy00ZGNjLWEwZjEtNWI1ODVkMDNkNWRkIiwidCI6ImUyZjc3ZDAwLTAxNjMtNGNmNi05MmIwLTQ4NGJhZmY5ZGY3ZCJ9)
 
 ---
 ## Estrutura do Repositório
 
 ```
 pipeline - caged - nordeste
+│
+├── docs/
+│   ├── dashboard_geral.png
+│   ├── dashboard_setor.png
+│   └── dashboard_demografia.png
 │
 ├── etl/
 │   └── etl_caged.py
@@ -175,39 +199,33 @@ pipeline - caged - nordeste
 
 ##  Como Executar o Projeto
 
-### Clonar o repositório
+### 1. Clonar o repositório
 
 ```bash
 git clone https://github.com/seu-usuario/caged-nordeste-analytics.git
 ```
 
-### Instalar dependências
+### 2. Instalar dependências
 
 ```bash
 pip install -r requirements.txt
 ```
-### Criação do Banco de dados
+### 3. Criar banco de dados
 
 ```bash
-sql create_database.sql
+psql -U postgres -f sql/create_database.sql
 ```
 
-### Criação da tabela principal
+### 4. Criar tabela 
 
 ```bash
-sql create_table_caged.sql
+psql -U postgres -d projeto_caged -f sql/create_table_caged.sql
 ```
 
-### Executar carga inicial
+### 5. Executar pipeline
 
 ```bash
-python etl_caged.py
-```
-
-### Atualizações mensais
-
-```bash
-python etl_caged.py
+python etl/etl_caged.py
 ```
 
 ---
@@ -215,20 +233,18 @@ python etl_caged.py
 
 * Os dados são provenientes de fonte pública oficial ([Novo CAGED](https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/microdados-rais-e-caged)).
 * O projeto foi desenvolvido para fins educacionais, portfólio e aprimoramento técnico.
-* O pipeline foi estruturado com foco em boas práticas análise de dados.
 * Alguns comandos referente ao SQL foram implementados no `etl_caged.py` utilizando-se da função `text`.
-* As variáveis de controle sempre deve ser alterada para a competência desejada.
+* As variáveis de controle devem ser alteradas.
 
 ---
 ## Autor
 
 **Wellington Mariano Pedro**
-
 Estudante de Ciências Econômicas — UFPE
-
 Foco em Data Analytics e Business Intelligence.
 
-[Linkedin](https://www.linkedin.com/in/wellington-mariano-985a39231/)
+Linkedin: [https://linkedin.com/in/wellington-mariano](https://www.linkedin.com/in/wellington-mariano-985a39231/)
+GitHub: [https://github.com/Well-Mariano](https://github.com/Well-Mariano)
 
 ---
 ## Licença
