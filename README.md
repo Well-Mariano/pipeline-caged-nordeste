@@ -20,17 +20,6 @@ Construir uma solução analítica que permita:
 
 ## Arquitetura da Solução
 
-graph TD
-    A[☁️ Servidor FTP - MTE <br> Arquivos Brutos .7z] -->|Download & Extração| B(🐍 Python & Pandas <br> ETL e Tratamento)
-    B -->|Filtro Nordeste <br> Tipagem e Limpeza| C[(🐘 PostgreSQL <br> Data Warehouse)]
-    C -->|CTE / Lógica de Exclusão <br> Eliminação de Duplicatas| C
-    C -->|Conexão Direta| D{📊 Power BI <br> Dashboard Analítico}
-
-    style A fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style B fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
-    style C fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style D fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-
 O pipeline de dados foi estruturado em três principais camadas:
 
 ```
