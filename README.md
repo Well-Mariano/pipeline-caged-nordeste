@@ -1,7 +1,7 @@
 # Análise do Mercado de Trabalho no Nordeste — Novo CAGED
 
 Este projeto tem como objetivo analisar a dinâmica do mercado de trabalho formal na região Nordeste do Brasil, utilizando os microdados oficiais do **Novo CAGED**, por meio de um pipeline completo de dados (ETL) e visualização analítica em **Power BI**.
-
+ 
 O projeto percorre todas as etapas de um fluxo de dados: **extração, transformação, carga, modelagem e visualização**, transformando dados brutos em **informação estratégica para apoio à tomada de decisão**.
 
 ---
@@ -27,7 +27,7 @@ FTP (Novo CAGED)
      ↓
 Python ETL (Pandas, SQLAlchemy)
      ↓
-PostgreSQL (Data Warehouse)
+PostgreSQL (Data Warehouse - Star schema)
      ↓
 Power BI (Dashboard)
 ```
@@ -36,9 +36,8 @@ Power BI (Dashboard)
 
 1. Extração dos microdados do Novo CAGED via FTP;
 2. Tratamento, limpeza e padronização em Python;
-3. Armazenamento em banco de dados PostgreSQL;
-4. Modelagem analítica;
-5. Visualização interativa no Power BI.
+3. Armazenamento em banco de dados PostgreSQL modelado em Star Schema;
+4. Visualização interativa no Power BI.
 
 ---
 
@@ -46,7 +45,8 @@ Power BI (Dashboard)
 
 * **Python** — Extração (Via FTP), tratamento e automação do pipeline (ETL)
 * **Pandas & NumPy** — Manipulação e transformação de dados
-* **SQL & PostgreSQL** — Armazenamento e organização da base
+* **SQLAlchemy** — Conexão e interação com o banco de dados
+* **SQL & PostgreSQL** — Armazenamento, modelagem dimensional e processamento de exclusões
 * **Power BI** — Modelagem analítica, visualização e dashboard interativo
 
 ---
@@ -57,15 +57,15 @@ O script `etl_caged.py` implementa um pipeline completo de ETL (Extract, Transfo
 
 ### 1. Configuração inicial
 
-Nesta etapa são definidas as variáveis de controle do ETL:
+Definição das variáveis de controle do ETL:
 * **ano_atual**: ano da competência a ser processada
 * **competencia**: mês da competência
-* **ano_filtro**: lista de anos considerados válidos
-* **engine_sql**: string de conexão com o PostgreSQL
+* **ano_filtro**: lista de anos considerados válidos para `CAGEDFOR` e `CAGEDEXC`
+* **engine**: string de conexão com o PostgreSQL
 
 ### 2. Extração dos dados (Extract)
 
-O script conecta-se ao servidor FTP do Ministério do Trabalho:
+Conexão ao servidor FTP do Ministério do Trabalho:
 ```bash
 ftp.mtps.gov.br/pdet/microdados/NOVO CAGED/
 ```
@@ -73,7 +73,6 @@ São baixados três arquivos principais:
 * **CAGEDMOV** - Movimentações mensais
 * **CAGEDFOR** - Movimentações fora do prazo
 * **CAGEDEXC** - Exclusões e ajustes
-Os arquivos são baixados no formato `.7z`.
 
 ### 3. Descompactação
 
@@ -81,72 +80,83 @@ Os arquivos `.7z` são extraídos automaticamente utilizando a biblioteca `py7zr
 
 ### 4. Transformação dos dados (Transform)
 
-Esta é a etapa mais importante do pipeline, onde os dados são tratados e padronizados. Ela se divide em:
-* Leitura dos arquivos `.txt`
-* Criação e conversão de colunas
-* Filtro geográfico: `Nordeste`
-* Tradução de códigos para valores descritivos
-* Criação de variáveis derivadas
-* Padronização dos nomes das colunas
-* União dos dados (`CAGEDMOV` + `CAGEDFOR`)
+Etapa central do pipeline, que inclui:
+* Leitura dos arquivos `.txt` com Pandas
+* Filtro geográfico: apenas registros da **região Nordeste** (`região == 2`)
+* Criação de variáveis derivadas: `ano`, `mes`, `data_competencia` e `faixa_etaria`
+* Filtragem temporal de `CAGEDFOR` e `CAGEDEXC` pelo `filtro_ano`
+* Seleção das colunas de interesse
+* Conversão de tipos numéricos
+* Padronização dos nomes das colunas (remoção de acentos e caracteres especiais)
+* União de `CAGEDMOV` + `CAGEDFOR` em `caged_join`
 
-### 5. Carga no banco de dados (Load)
+### 5. Processamento de exclusões (CAGEDEXC)
 
-O script conecta-se ao PostgreSQL utilizando `SQLAlchemy`. Esta etapa segue o seguinte processo:
-* Cria tabela temporária para processar o arquivo `CAGEDEXC`
-* Identifica os registros inválidos e remove da tabela principal (`ft_caged`)
-* Exclui tabela temporária
-* Os dados tratados (`CAGEDMOV` + `CAGEDFOR`) são inseridos na tabela principal
+Um dos principais desafios dos microdados do Novo CAGED é processar o arquivo de exclusões sem possuir identificadores únicos como CPF na base pública. Para contornar isso, foi implementada uma **CTE (Common Table Expression)** diretamente no script Python via `SQLAlchemy`, que:
 
-### 6. Limpeza dos arquivos baixados
+1. Carrega `CAGEDEXC` em uma tabela temporária (`tab_exc_temp`)
+2. Numera as ocorrências duplicadas na tabela principal (`ft_caged`) e no arquivo de exclusões usando `ROW_NUMBER() OVER (PARTITION BY ...)`
+3. Realiza o *match* exato entre registros, deletando apenas a quantidade solicitada e preservando os dados legítimos
+4. Remove a tabela temporária ao final
 
-Após a carga no banco, os arquivos baixados (`CAGEDMOV`, `CAGEDFOR` e `CAGEDEXC`) são removidos automaticamente para evitar acúmulo desnecessário de dados:
-* Arquivos `.7z`
-* Arquivos `.txt`
+### 6. Carga no banco de dados (Load)
+
+Após o processamento das exclusões, os dados do `caged_join` (`CAGEDMOV` + `CAGEDFOR`) são inseridos incrementalmente na tabela principal `ft_caged` via `to_sql` com `if_exists='append'`.
+
+### 7. Limpeza dos arquivos baixados
+
+Ao final, os arquivos `.7z` e `.txt` baixados são removidos automaticamente do diretório local.
 
 ---
-## Exclusão das informações (CAGEDEXC)
 
-Um dos principais desafios dos microdados do Novo CAGED é processar o arquivo de "Desconsiderados" sem possuir identificadores únicos, como o CPF, na base pública.
-Nesse sentido, para ultrapassar essa barreira, foi preciso utilizar uma CTE (Common Table Expression) no postgreSQL que possibilitasse a numeração das ocorrências duplicadas na tabela principal e a numeração das solicitações de exclusões contidas no arquivo **CAGEDEXC** para que realizasse um 'match' exato entre as ocorrências e deletasse apenas a quantidade solicitada, preservando os dados legítimos. Essa etapa foi implementada ao `etl_caged.py`
+## Banco de Dados — PostgreSQL (Star Schema)
 
-### Script:
+O banco de dados foi modelado seguindo o padrão **Star Schema**, com uma tabela fato central e tabelas dimensão para enriquecer as análises.
 
-```bash
-sql excluir_cagedexc.sql
-```
----
-## Banco de Dados — PostgreSQL
+### Tabela Fato
 
-O PostgreSQL é utilizado como **camada central de armazenamento**, permitindo:
+**`ft_caged`**
 
-* Persistência dos dados históricos;
-* Atualizações e ajustes incrementais;
-* Organização estruturada da base;
-* Integração direta com o Power BI.
+| Campo | Tipo | Descrição |
+|---|---|---|
+| id_registro | SERIAL PK | Identificador único |
+| data_competencia | DATE | Data de referência |
+| ano | INTEGER | Ano da competência |
+| mes | INTEGER | Mês da competência |
+| regiao | INTEGER | Código da região |
+| uf | INTEGER | Código da UF |
+| municipio | INTEGER | Geocódigo do município |
+| secao | CHAR(2) | Seção CNAE |
+| saldo_movimentacao | INTEGER | Admissão (+1) ou Desligamento (-1) |
+| instrucao | INTEGER | Grau de instrução (FK → dim_instrucao) |
+| idade | INTEGER | Idade do trabalhador |
+| faixa_etaria | VARCHAR(15) | Faixa etária derivada |
+| raca_cor | INTEGER | Raça/cor (FK → dim_raca_cor) |
+| sexo | INTEGER | Sexo (FK → dim_sexo) |
+| cbo | VARCHAR(6) | Código da ocupação (FK → dim_cbo) |
 
-## Arquitetura do Banco
+### Tabelas Dimensão
 
-**Tabela fato:**
-* `ft_caged`
-
-**Principais campos:**
-* data_competencia
-* ano
-* mes
-* regiao
-* uf
-* municipio
-* secao
-* saldo_movimentacao
-* instrucao
-* idade
-* raca_cor
-* sexo
-* cbo
-* setor
-* faixa_etaria
-
+**`dim_municipio`** — Municípios com informações territoriais
+ 
+| Campo | Tipo |
+|---|---|
+| geocodigo | INTEGER PK |
+| municipio | VARCHAR(200) |
+| uf | VARCHAR(2) |
+| Sudene | VARCHAR(3) |
+| Semiárido | VARCHAR(3) |
+| Nordeste | VARCHAR(3) |
+| Caatinga | VARCHAR(3) |
+ 
+**`dim_sexo`** — Descrição dos códigos de sexo
+ 
+**`dim_raca_cor`** — Descrição dos códigos de raça/cor
+ 
+**`dim_instrucao`** — Descrição dos graus de instrução
+ 
+**`dim_cbo`** — Descrição das ocupações CBO
+ 
 ---
 
 ## Dashboard — Power BI
@@ -165,14 +175,15 @@ O dashboard foi desenvolvido para transformar os dados tratados em **insights es
 
 ![Análise Demográfica](docs/dashboard_demografia.png)
 
-🔗 **Dashboard:**
+🔗 **Acesse o dashboard:**
 [Clique aqui](https://app.powerbi.com/view?r=eyJrIjoiZjc3MGYwNTUtOTkwNy00ZGNjLWEwZjEtNWI1ODVkMDNkNWRkIiwidCI6ImUyZjc3ZDAwLTAxNjMtNGNmNi05MmIwLTQ4NGJhZmY5ZGY3ZCJ9)
 
 ---
+
 ## Estrutura do Repositório
 
 ```
-pipeline - caged - nordeste
+pipeline-caged-nordeste/
 │
 ├── docs/
 │   ├── dashboard_geral.png
@@ -183,14 +194,11 @@ pipeline - caged - nordeste
 │   └── etl_caged.py
 │
 ├── sql/
-│   └── create_database.sql
-│   └── create_table_caged.sql
-│   └── delete_cagedexc.sql
+│   ├── create_table_caged.sql
+│   ├── create_dim_municipio.sql
+│   └── create_dim_sexo_instrucao_raca_cor.sql
+│   └── valores_dim_sexo_instrucao_raca_cor.sql
 │
-├── auxiliary/
-│   └── muni.xlsx
-│   └── cbo.xlsx
-|
 ├── README.md
 └── requirements.txt
 ```
@@ -200,30 +208,50 @@ pipeline - caged - nordeste
 ##  Como Executar o Projeto
 
 ### 1. Clonar o repositório
-
+ 
 ```bash
-git clone https://github.com/seu-usuario/caged-nordeste-analytics.git
+git clone https://github.com/Well-Mariano/pipeline-caged-nordeste.git
+cd pipeline-caged-nordeste
 ```
-
+ 
 ### 2. Instalar dependências
-
+ 
 ```bash
 pip install -r requirements.txt
 ```
-### 3. Criar banco de dados
-
-```bash
-psql -U postgres -f sql/create_database.sql
-```
-
-### 4. Criar tabela 
-
+ 
+### 3. Criar a tabela fato
+ 
 ```bash
 psql -U postgres -d projeto_caged -f sql/create_table_caged.sql
 ```
+ 
+### 4. Criar as tabelas dimensão
+ 
+```bash
+psql -U postgres -d projeto_caged -f sql/create_dim_municipio.sql
+psql -U postgres -d projeto_caged -f sql/create_dim_sexo_instrucao_raca_cor.sql
+```
+ 
+### 5. Popular as dimensões
+ 
+```bash
+psql -U postgres -d projeto_caged -f sql/valores_dim_sexo_instrucao_raca_cor.sql
+```
 
-### 5. Executar pipeline
+### 6. Configurar as variáveis de controle
 
+Abra o arquivo `etl/etl_caged.py` e ajuste as variáveis no início do script:
+ 
+```python
+ano_atual = '2025'      # Ano da competência
+competencia = '12'      # Mês da competência
+filtro_ano = ['2025']   # Anos válidos para CAGEDFOR e CAGEDEXC
+senha_BD = 'sua_senha'  # Senha do PostgreSQL
+```
+ 
+### 7. Executar o pipeline
+ 
 ```bash
 python etl/etl_caged.py
 ```
@@ -233,10 +261,12 @@ python etl/etl_caged.py
 
 * Os dados são provenientes de fonte pública oficial ([Novo CAGED](https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/microdados-rais-e-caged)).
 * O projeto foi desenvolvido para fins educacionais, portfólio e aprimoramento técnico.
-* Alguns comandos referente ao SQL foram implementados no `etl_caged.py` utilizando-se da função `text`.
-* As variáveis de controle devem ser alteradas.
+* A lógica de exclusão de registros (`CAGEDEXC`) está implementada diretamente no `etl_caged.py` via `SQLAlchemy` + CTE no PostgreSQL.
+* As variáveis de controle no início do script devem ser atualizadas a cada nova competência.
+* **Atenção:** não suba o script com a senha do banco exposta. Considere usar variáveis de ambiente.
 
 ---
+
 ## Autor
 
 **Wellington Mariano Pedro**
@@ -255,8 +285,5 @@ GitHub: [https://github.com/Well-Mariano](https://github.com/Well-Mariano)
 Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ---
-## Considerações Finais
-
-Este projeto demonstra a construção de uma solução analítica completa, indo desde a ingestão automatizada dos dados até a geração de insights estratégicos por meio de dashboards interativos.
 
 Se este projeto foi útil, sinta-se à vontade para deixar uma ⭐ no repositório.
