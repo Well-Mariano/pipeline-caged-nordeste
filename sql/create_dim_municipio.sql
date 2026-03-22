@@ -1,7 +1,9 @@
-create table dim_municipio (
-	geocodigo varchar(6),
-	municipio varchar(50),
+CREATE TABLE dim_municipio (
+	geocodigo integer primary key,
+	municipio varchar(200),
 	uf varchar(2),
-	integra_Semiarido2021 varchar(3),
-	integra_bioma_Caatinga varchar(3)
+	Sudene varchar(3),
+	"Semiárido" varchar(3),
+	Nordeste varchar(3),
+	Caatinga varchar(3)
 )

@@ -1,1 +1,0 @@
-CREATE DATABASE projeto_caged;
